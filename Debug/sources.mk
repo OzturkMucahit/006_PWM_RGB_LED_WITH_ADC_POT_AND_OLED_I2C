@@ -23,6 +23,5 @@ C_DEPS :=
 SUBDIRS := \
 Core/Src \
 Core/Startup \
-Drivers/OLED \
 Drivers/STM32F4xx_HAL_Driver/Src \
 

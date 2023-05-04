@@ -49,6 +49,10 @@ TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
 
+char ret_string_1, ret_string_2;
+char string_1[] = "Mucahit";
+char string_2[] = "Ozturk";
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,8 +104,13 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   ssd1306_Init();				// ssd1306 initialize.
-  ssd1306_Fill(White);
-  ssd1306_UpdateScreen();
+  ssd1306_Fill(White);			// Fill the display with white colour.
+//  ssd1306_UpdateScreen();
+  ssd1306_SetCursor(10, 5);		// Set the cursor x and y axis for 128x64 Oled display.
+  ret_string_1 = ssd1306_WriteString(string_1, Font_11x18, Black);		// Write the string_1 to ret_string_1 char.
+  ssd1306_SetCursor(10, 25);
+  ret_string_2 = ssd1306_WriteString(string_2, Font_11x18, Black);
+  ssd1306_UpdateScreen();		// It must be use for work with Oled display.
 
   /* USER CODE END 2 */
 
