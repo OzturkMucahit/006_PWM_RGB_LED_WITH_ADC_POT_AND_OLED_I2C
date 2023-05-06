@@ -18,11 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "ssd1306.h"
-#include "ssd1306_fonts.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
+#include "stdio.h"
+
+// #include "main.h"
 
 /* USER CODE END Includes */
 
@@ -49,9 +53,12 @@ TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
 
+uint16_t adc_value, adc_value_R, adc_value_G, adc_value_B, oled_R, oled_G, oled_B;
+int count,color_sr;
 char ret_string_1, ret_string_2;
 char string_1[] = "Mucahit";
 char string_2[] = "Ozturk";
+char str_RGB[15];
 
 /* USER CODE END PV */
 
@@ -102,15 +109,24 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  ssd1306_Init();
 
-  ssd1306_Init();				// ssd1306 initialize.
-  ssd1306_Fill(White);			// Fill the display with white colour.
-//  ssd1306_UpdateScreen();
-  ssd1306_SetCursor(10, 5);		// Set the cursor x and y axis for 128x64 Oled display.
-  ret_string_1 = ssd1306_WriteString(string_1, Font_11x18, Black);		// Write the string_1 to ret_string_1 char.
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);		// R Channel Start
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);		// G Channel Start
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);		// B Channel Start
+  adc_value = 0;								// With first energy ADC_value = 0
+  adc_value_R = 0; adc_value_G = 0; adc_value_B = 0;
+  oled_R = 0; oled_G = 0; oled_B = 0;
+  count = 0;
+  color_sr = 1;
+
+/*  ssd1306_Init();															// ssd1306 initialize.
+  ssd1306_Fill(White);														// Fill the display with white colour.
+  ssd1306_SetCursor(10, 5);													// Set the cursor x and y axis for 128x64 Oled display.
+  ret_string_1 = ssd1306_WriteString(string_1, Font_11x18, Black);			// Write the string_1 to ret_string_1 char.
   ssd1306_SetCursor(10, 25);
   ret_string_2 = ssd1306_WriteString(string_2, Font_11x18, Black);
-  ssd1306_UpdateScreen();		// It must be use for work with Oled display.
+  ssd1306_UpdateScreen();*/													// It must be use for work with Oled display.
 
   /* USER CODE END 2 */
 
@@ -121,6 +137,124 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  HAL_ADC_Start(&hadc1);								// Start the ADC1.
+	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); 	// Using ADC with polling mode.
+//	  adc_value = HAL_ADC_GetValue(&hadc1);					// Get the ADC value in polling mode.
+
+	  if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5)){				// Push the button_2
+		  color_sr = 2;
+	  }
+
+/****  Asagida belirtilen kosul sadece button_2 kosulundan önce belirtilmis olsaydi c program akış hiyerarşisi ve calisma hizinden dolayı belirtilen islem gerceklesmezdi  ****/
+	  if ((HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3)) && (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5))){		//  Push both of the buttons (button_1 + button_2)
+		  ssd1306_Fill(Black);
+		  color_sr = 1;
+	  }
+
+	  switch (color_sr)
+	  {
+	  case 1:
+		  if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3)){				// GPIOA_Pin_3 == 1 it means if you push button_1, runing in this if function.
+			  HAL_Delay(200);									// Added delay function for count value increase one by one.
+			  count ++;
+		  }
+
+		  if (count%3 == 0){													// Case 1 => Set the Red colour.
+	  		  adc_value_R = HAL_ADC_GetValue(&hadc1);
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, adc_value_R);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, adc_value_G);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, adc_value_B);		// Write the value in TIM_PWM_Ch1
+	  		  HAL_Delay(100);
+
+	  		  ssd1306_Fill(Black);												// If don't use this the Oled display showing 2 digit value like 3 digit value. (10 is like 100)
+	  		  oled_R = (adc_value_R*255) / 4095;								// oled_R value is in the range of 0-255
+	  		  sprintf(str_RGB, "Red = %d", oled_R);								// Write in str_RGB
+	  		  ssd1306_SetCursor(5,5);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_G = (adc_value_G*255) / 4095;								// oled_G value is in the range of 0-255
+	  		  sprintf(str_RGB, "Green = %d", oled_G);
+	  		  ssd1306_SetCursor(5,25);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_B = (adc_value_B*255) / 4095;								// oled_B value is in the range of 0-255
+	  		  sprintf(str_RGB, "Blue = %d", oled_B);
+	  		  ssd1306_SetCursor(5,45);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  ssd1306_UpdateScreen();
+		  	  }
+
+		  else if (count%3 == 1){												// Case 2 => Set the Green colour.
+	  		  adc_value_G = HAL_ADC_GetValue(&hadc1);
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, adc_value_R);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, adc_value_G);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, adc_value_B);		// Write the value in TIM_PWM_Ch1
+	  		  HAL_Delay(100);
+
+	  		  ssd1306_Fill(Black);
+	  		  oled_R = (adc_value_R*255) / 4095;								// oled_R value is in the range of 0-255
+	  		  sprintf(str_RGB, "Red = %d", oled_R);								// Write in str_RGB
+	  		  ssd1306_SetCursor(5,5);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_G = (adc_value_G*255) / 4095;								// oled_G value is in the range of 0-255
+	  		  sprintf(str_RGB, "Green = %d", oled_G);
+	  		  ssd1306_SetCursor(5,25);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_B = (adc_value_B*255) / 4095;								// oled_B value is in the range of 0-255
+	  		  sprintf(str_RGB, "Blue = %d", oled_B);
+	  		  ssd1306_SetCursor(5,45);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  ssd1306_UpdateScreen();
+		  	  }
+
+		  else if (count%3 == 2){												// Case 3 => Set the Blue colour.
+	  		  adc_value_B = HAL_ADC_GetValue(&hadc1);
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, adc_value_R);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, adc_value_G);		// Write the value in TIM_PWM_Ch1
+	  		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, adc_value_B);		// Write the value in TIM_PWM_Ch1
+	  		  HAL_Delay(100);
+
+	  		  ssd1306_Fill(Black);
+	  		  oled_R = (adc_value_R*255) / 4095;								// oled_R value is in the range of 0-255
+	  		  sprintf(str_RGB, "Red = %d", oled_R);								// Write in str_RGB
+	  		  ssd1306_SetCursor(5,5);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_G = (adc_value_G*255) / 4095;								// oled_G value is in the range of 0-255
+	  		  sprintf(str_RGB, "Green = %d", oled_G);
+	  		  ssd1306_SetCursor(5,25);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  oled_B = (adc_value_B*255) / 4095;								// oled_B value is in the range of 0-255
+	  		  sprintf(str_RGB, "Blue = %d", oled_B);
+	  		  ssd1306_SetCursor(5,45);
+	  		  ssd1306_WriteString(str_RGB, Font_11x18, White);
+	  		  ssd1306_UpdateScreen();
+		  	  }
+
+	  break;
+
+	  case 2:
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, adc_value_R);			// Write the value in TIM_PWM_Ch1
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, adc_value_G);			// Write the value in TIM_PWM_Ch1
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, adc_value_B);			// Write the value in TIM_PWM_Ch1
+		  HAL_Delay(10);
+
+		  ssd1306_Fill(White);
+		  oled_R = (adc_value_R*255) / 4095;								// oled_R value is in the range of 0-255
+		  sprintf(str_RGB, "Red = %d", oled_R);								// Write in str_RGB
+		  ssd1306_SetCursor(5,5);
+		  ssd1306_WriteString(str_RGB, Font_11x18, Black);
+		  oled_G = (adc_value_G*255) / 4095;								// oled_G value is in the range of 0-255
+		  sprintf(str_RGB, "Green = %d", oled_G);
+		  ssd1306_SetCursor(5,25);
+		  ssd1306_WriteString(str_RGB, Font_11x18, Black);
+		  oled_B = (adc_value_B*255) / 4095;								// oled_B value is in the range of 0-255
+		  sprintf(str_RGB, "Blue = %d", oled_B);
+		  ssd1306_SetCursor(5,45);
+		  ssd1306_WriteString(str_RGB, Font_11x18, Black);
+		  ssd1306_UpdateScreen();
+
+	  break;
+	  }
+
   }
   /* USER CODE END 3 */
 }
@@ -194,7 +328,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -209,7 +343,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -277,7 +411,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 3;
+  htim1.Init.Prescaler = 40;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 4095;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
